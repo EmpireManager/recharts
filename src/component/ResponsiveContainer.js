@@ -7,39 +7,48 @@ import pureRender from '../util/PureRender';
 import { getPercentValue, isPercent } from '../util/DataUtils';
 import { warn } from '../util/LogUtils';
 
-const render = ({ width, height, container, children }) => {
+const render = ({ aspect, width, height, minWidth, minHeight, container, children }) => {
+
   warn(isPercent(width) || isPercent(height),
-    `The width(%s) and height(%s) are both fixed number,
-     maybe you don't need to use ResponsiveContainer.`,
+    `The width(%s) and height(%s) are both fixed numbers,
+     maybe you don't need to use a ResponsiveContainer.`,
     width, height
   );
 
-  const calculatedWidth = getPercentValue(width, container.width);
-  const calculatedHeight = getPercentValue(height, container.height);
+  let calculatedWidth = getPercentValue(width, container.width);
+  let calculatedHeight = getPercentValue(height, container.height);
+
+  // At least the minimum if given
+  if (minWidth && calculatedWidth < minWidth) {
+    calculatedWidth = minWidth;
+  }
+  if (minHeight && calculatedHeight < minHeight) {
+    calculatedHeight = minHeight;
+  }
+
+  if (aspect) {
+    // Preserve the desired aspect ratio
+    if (calculatedWidth / calculatedHeight !== aspect) {
+      calculatedHeight = calculatedWidth / aspect;
+    }
+  }
 
   warn(calculatedWidth > 0 && calculatedHeight > 0,
     `The width(%s) and height(%s) of chart should be greater than 0,
-    please check the style of container, or the props width(%s) and height(%s).`,
-     calculatedWidth, calculatedHeight, width, height
+     please check the style of container, or the props width(%s) and height(%s),
+     or add a minWidth(%s) or minHeight(%s) or use aspect(%s) to control the
+     height and width.`,
+    calculatedWidth, calculatedHeight, width, height, minWidth, minHeight, aspect
   );
 
-  if (calculatedWidth > 0 && calculatedHeight > 0) {
-    return React.cloneElement(children, {
-      width: calculatedWidth,
-      height: calculatedHeight,
-    });
-  }
-
-  return null;
-};
-
-const style = {
-  width: '100%',
-  height: '100%',
+  return React.cloneElement(children, {
+    width: calculatedWidth,
+    height: calculatedHeight,
+  });
 };
 
 const ResponsiveContainer = props => (
-  <div className="recharts-responsive-container" style={style}>
+  <div className="recharts-responsive-container">
     <ContainerDimensions>
       {
         container =>
@@ -54,9 +63,12 @@ const ResponsiveContainer = props => (
 
 ResponsiveContainer.displayName = 'ResponsiveContainer';
 ResponsiveContainer.propTypes = {
+  aspect: PropTypes.number,
   width: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   height: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  children: PropTypes.node,
+  minHeight: PropTypes.number,
+  minWidth: PropTypes.number,
+  children: PropTypes.node.isRequired,
 };
 
 ResponsiveContainer.defaultProps = {
